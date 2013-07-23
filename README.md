@@ -5,7 +5,7 @@ elang
 
 使用方法
 -------
-首先[下载](https://pa001024.github.io/elang/download/elang.zip)
+首先[下载](http://pa001024.github.io/elang/download/elang.zip)
 
 解压之后运行命令行
 
