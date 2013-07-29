@@ -17,7 +17,7 @@ import (
 	"bytes"
 	"io"
 
-	"github.com/axgle/mahonia"
+	"code.google.com/p/mahonia"
 )
 
 var (
