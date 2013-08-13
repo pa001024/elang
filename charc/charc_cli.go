@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/signal"
 	"sort"
 )
 
@@ -172,12 +173,21 @@ func main() {
 	} else {
 		co = NewNormalCounter()
 	}
+
+	// stdin 输入下防止坑爹
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	go func() {
+		for sig := range c {
+			if isCount {
+				fmt.Println("\n[All]", co.AllCount(), "[Chars]", co.Counted())
+			}
+			os.Exit(0)
+		}
+	}()
 	co.ReadAll(fin)
 	co.Output(fout, isMutiline)
 	if isCount {
-		if out == "stdout" || out == "stderr" {
-			fmt.Println()
-		}
-		fmt.Println("[All]", co.AllCount(), "[Chars]", co.Counted())
+		fmt.Println("\n[All]", co.AllCount(), "[Chars]", co.Counted())
 	}
 }
