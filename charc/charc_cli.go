@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"flag"
 	"fmt"
 	"io"
@@ -125,23 +126,24 @@ func (this *SortCounter) Output(out io.Writer, mutiline bool) {
 func (this *SortCounter) AllCount() int64 { return this.count }
 func (this *SortCounter) Counted() int    { return len(this.m) }
 
-func parseflags() (in string, out string, sort, mutiline, count bool) {
+func parseflags() (in string, out string, sort, mutiline, count, random bool) {
 	i := flag.String("i", "stdin", "the file you want to use")
 	o := flag.String("o", "stdout", "the file you want to output")
 	s := flag.Bool("s", false, "sort by use times")
 	l := flag.Bool("l", false, "output mutiline text")
 	c := flag.Bool("c", false, "print char count")
 	h := flag.Bool("h", false, "show help")
+	r := flag.Bool("r", false, "random output")
 	flag.Parse()
 	if *h {
 		flag.Usage()
 		os.Exit(0)
 	}
-	return *i, *o, *s, *l, *c
+	return *i, *o, *s, *l, *c, *r
 }
 
 func main() {
-	in, out, isSort, isMutiline, isCount := parseflags()
+	in, out, isSort, isMutiline, isCount, isRandom := parseflags()
 	var fin io.Reader
 	if in == "stdin" {
 		fin = os.Stdin
@@ -178,7 +180,7 @@ func main() {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 	go func() {
-		for sig := range c {
+		for _ = range c {
 			if isCount {
 				fmt.Println("\n[All]", co.AllCount(), "[Chars]", co.Counted())
 			}
@@ -186,7 +188,13 @@ func main() {
 		}
 	}()
 	co.ReadAll(fin)
-	co.Output(fout, isMutiline)
+	if isRandom {
+		buf := &bytes.Buffer{}
+		co.Output(buf, false)
+		io.Copy(fout, buf)
+	} else {
+		co.Output(fout, isMutiline)
+	}
 	if isCount {
 		fmt.Println("\n[All]", co.AllCount(), "[Chars]", co.Counted())
 	}
