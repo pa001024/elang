@@ -1,10 +1,10 @@
 /*
-基础简繁转换(不转换词组)
+基础简和转换(不转换词组)
 
 以后可能使用大数组优化 不过考虑到目前字符数量相对还是较少 所以还是用map实现
 */
 
-package zhconv
+package jpconv
 
 import (
 	"bytes"
@@ -15,7 +15,6 @@ import (
 type Decoder struct {
 	r     io.Reader
 	inbuf *bytes.Buffer
-	// outbuf *bytes.Buffer
 }
 
 func (this *Decoder) Read(p []byte) (n int, err error) {
@@ -24,7 +23,7 @@ func (this *Decoder) Read(p []byte) (n int, err error) {
 
 	d := []rune(string(p[:n]))
 	for i, v := range d {
-		if e, ok := s2t[v]; ok && len(e) > 0 {
+		if e, ok := s2j[v]; ok && len(e) > 0 {
 			d[i] = e[0]
 		}
 	}
@@ -69,7 +68,7 @@ func (this *Encoder) Write(p []byte) (n int, err error) {
 		}
 		p = p[size:]
 
-		if e, ok := t2s[rune]; ok && len(e) > 0 {
+		if e, ok := j2s[rune]; ok && len(e) > 0 {
 			rune = e[0]
 		}
 	retry:
@@ -99,7 +98,7 @@ func (this *Encoder) Close() error {
 	return nil
 }
 
-// 转换繁体到简体
+// 转换和体到简体
 func EncodeString(str string) string {
 	buf := &bytes.Buffer{}
 	e := NewEncoder(buf)
@@ -107,7 +106,7 @@ func EncodeString(str string) string {
 	return buf.String()
 }
 
-// 转换简体到繁体
+// 转换简体到和体
 func DecodeString(str string) string {
 	buf := &bytes.Buffer{}
 	e := NewDecoder(bytes.NewBufferString(str))
