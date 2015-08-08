@@ -24,16 +24,23 @@ type Counter interface {
 
 // 不排序字符统计器
 type NormalCounter struct {
-	count int64
-
-	m  map[rune]int
-	ma []rune
+	count       int64
+	isAllChar   bool
+	isSortASCII bool
+	m           map[rune]int
+	ma          []rune
 }
 
-func NewNormalCounter() *NormalCounter {
+func NewNormalCounter(allChar, sortASCII bool) *NormalCounter {
+	maxcap := 0x9fa5 - 0x4e00
+	if allChar {
+		maxcap = 0xffff
+	}
 	return &NormalCounter{
-		m:  make(map[rune]int),
-		ma: make([]rune, 0, 0x9fa5-0x4e00),
+		m:           make(map[rune]int),
+		ma:          make([]rune, 0, maxcap),
+		isAllChar:   allChar,
+		isSortASCII: sortASCII,
 	}
 }
 func (this *NormalCounter) ReadAll(in io.Reader) {
@@ -43,7 +50,7 @@ func (this *NormalCounter) ReadAll(in io.Reader) {
 		if err != nil {
 			break
 		}
-		if _, ok := this.m[ru]; ru >= 0x4e00 && ru <= 0x9fa5 {
+		if _, ok := this.m[ru]; this.isAllChar || ru >= 0x4e00 && ru <= 0x9fa5 {
 			if !ok {
 				this.m[ru] = 0
 				this.ma = append(this.ma, ru)
@@ -53,7 +60,21 @@ func (this *NormalCounter) ReadAll(in io.Reader) {
 		}
 	}
 }
+func (this *NormalCounter) SortASCII() {
+	sorter := &runeSorter{this.ma}
+	sort.Sort(sorter)
+}
+
+type runeSorter struct{ runes []rune }
+
+func (s *runeSorter) Len() int           { return len(s.runes) }
+func (s *runeSorter) Swap(i, j int)      { s.runes[i], s.runes[j] = s.runes[j], s.runes[i] }
+func (s *runeSorter) Less(i, j int) bool { return s.runes[i] < s.runes[j] }
+
 func (this *NormalCounter) Output(out io.Writer, mutiline bool) {
+	if this.isSortASCII {
+		this.SortASCII()
+	}
 	w := bufio.NewWriter(out)
 	for _, v := range this.ma {
 		v2 := this.m[v]
@@ -70,14 +91,16 @@ func (this *NormalCounter) Counted() int    { return len(this.ma) }
 
 // 排序字符统计器
 type SortCounter struct {
-	count int64
-	// charsets []Charset
-	m  map[rune]int
-	rm map[int][]rune
-	ra []int
+	count     int64
+	isAllChar bool
+	m         map[rune]int
+	rm        map[int][]rune
+	ra        []int
 }
 
-func NewSortCounter() *SortCounter { return &SortCounter{m: make(map[rune]int)} }
+func NewSortCounter(allChar bool) *SortCounter {
+	return &SortCounter{m: make(map[rune]int), isAllChar: allChar}
+}
 func (this *SortCounter) ReadAll(in io.Reader) {
 	r := bufio.NewReader(in)
 	for {
@@ -85,7 +108,7 @@ func (this *SortCounter) ReadAll(in io.Reader) {
 		if err != nil {
 			break
 		}
-		if _, ok := this.m[ru]; ru >= 0x4e00 && ru <= 0x9fa5 {
+		if _, ok := this.m[ru]; this.isAllChar || ru >= 0x4e00 && ru <= 0x9fa5 {
 			if !ok {
 				this.m[ru] = 0
 			}
@@ -126,11 +149,13 @@ func (this *SortCounter) Output(out io.Writer, mutiline bool) {
 func (this *SortCounter) AllCount() int64 { return this.count }
 func (this *SortCounter) Counted() int    { return len(this.m) }
 
-func parseflags() (in string, out string, sort, mutiline, count, random bool) {
+func parseflags() (in string, out string, sort, sortascii, mutiline, allchar, count, random bool) {
 	i := flag.String("i", "stdin", "the file you want to use")
 	o := flag.String("o", "stdout", "the file you want to output")
 	s := flag.Bool("s", false, "sort by use times")
+	p := flag.Bool("p", false, "sort by ASCII")
 	l := flag.Bool("l", false, "output mutiline text")
+	a := flag.Bool("a", false, "output all char")
 	c := flag.Bool("c", false, "print char count")
 	h := flag.Bool("h", false, "show help")
 	r := flag.Bool("r", false, "random output")
@@ -139,11 +164,11 @@ func parseflags() (in string, out string, sort, mutiline, count, random bool) {
 		flag.Usage()
 		os.Exit(0)
 	}
-	return *i, *o, *s, *l, *c, *r
+	return *i, *o, *s, *p, *l, *a, *c, *r
 }
 
 func main() {
-	in, out, isSort, isMutiline, isCount, isRandom := parseflags()
+	in, out, isSort, isSortASCII, isMutiline, isAllChar, isCount, isRandom := parseflags()
 	var fin io.Reader
 	if in == "stdin" {
 		fin = os.Stdin
@@ -171,9 +196,9 @@ func main() {
 	}
 	var co Counter
 	if isSort {
-		co = NewSortCounter()
+		co = NewSortCounter(isAllChar)
 	} else {
-		co = NewNormalCounter()
+		co = NewNormalCounter(isAllChar, isSortASCII)
 	}
 
 	// stdin 输入下防止坑爹
