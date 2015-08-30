@@ -206,6 +206,13 @@ func main() {
 	signal.Notify(c, os.Interrupt)
 	go func() {
 		for _ = range c {
+			if isRandom {
+				buf := &bytes.Buffer{}
+				co.Output(buf, false)
+				io.Copy(fout, buf)
+			} else {
+				co.Output(fout, isMutiline)
+			}
 			if isCount {
 				fmt.Println("\n[All]", co.AllCount(), "[Chars]", co.Counted())
 			}
